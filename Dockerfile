@@ -45,7 +45,7 @@ ENV PROTOCOL=https
 #ENV LOCAL_IP=172.31.91.82
 
 # Comment it to use custom certificates
-ENV HTTPS_LETSENCRYPT=true
+ENV HTTPS_LETSENCRYPT=false
 # Mount the custom certificate path if custom certificates must be used
 # ENV_HTTPS_CERT_PATH is the path to certificates and keys inside the container
 #ENV HTTPS_CERT_PATH=/cert

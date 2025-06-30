@@ -1,0 +1,43 @@
+# Render Blueprint for Headwind MDM
+# Reference: https://render.com/docs/blueprint-spec
+
+services:
+  # Headwind MDM Server
+  - type: web
+    name: hmdm-server
+    region: oregon
+    env: docker
+    dockerfilePath: Dockerfile
+    envVars:
+      - key: SQL_HOST
+        value: dpg-d1grcd3ipnbc73b3vv90-a.oregon-postgres.render.com
+      - key: SQL_PORT
+        value: "5432"
+      - key: SQL_USER
+        value: hmdm_database_user
+      - key: SQL_PASS
+        value: pUdw7cLjQEx6AYIrqIMPi7OSRQb4E76P
+      - key: SQL_BASE
+        value: hmdm-database
+      - key: BASE_DOMAIN
+        value: hmdm-server.onrender.com
+      - key: PROTOCOL
+        value: https
+      - key: ADMIN_EMAIL
+        value: admin@render.com
+      - key: HTTPS_LETSENCRYPT
+        value: "false"
+      - key: FORCE_RECONFIGURE
+        value: "false"
+      - key: INSTALL_LANGUAGE
+        value: "en"
+      - key: HMDM_VARIANT
+        value: "os"
+      - key: CLIENT_VERSION
+        value: "6.14"
+      - key: SHARED_SECRET
+        value: "changeme-C3z9vi54"
+    plan: free
+    numInstances: 1
+    healthCheckPath: /
+    autoDeploy: true

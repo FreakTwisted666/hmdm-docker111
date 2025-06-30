@@ -74,26 +74,37 @@ for FILE in $FILES_TO_DOWNLOAD; do
 done
 
 # jks is always created from the certificates
-if [ "$PROTOCOL" = "https" ]; then
-    if [ "$HTTPS_LETSENCRYPT" = "true" ]; then
-	HTTPS_CERT_PATH=/etc/letsencrypt/live/$BASE_DOMAIN
-        echo "Looking for SSL keys in $HTTPS_CERT_PATH..."
-	# If started by docker-compose, let's wait until certbot completes
-	until [ -f $HTTPS_CERT_PATH/$HTTPS_PRIVKEY ]; do
-            echo "Keys not found, waiting..."
-	    sleep 5
-        done
-    fi
+if [ "$PROTOCOL" = "https" ] && [ "$HTTPS_LETSENCRYPT" = "true" ]; then
+    HTTPS_CERT_PATH=/etc/letsencrypt/live/$BASE_DOMAIN
+    echo "Looking for SSL keys in $HTTPS_CERT_PATH..."
+    # If started by docker-compose, let's wait until certbot completes
+    until [ -f $HTTPS_CERT_PATH/$HTTPS_PRIVKEY ]; do
+        echo "Keys not found, waiting..."
+        sleep 5
+    done
 
     openssl pkcs12 -export -out $TOMCAT_DIR/ssl/hmdm.p12 -inkey $HTTPS_CERT_PATH/$HTTPS_PRIVKEY -in $HTTPS_CERT_PATH/$HTTPS_CERT -certfile $HTTPS_CERT_PATH/$HTTPS_FULLCHAIN -password pass:$PASSWORD
     keytool -importkeystore -destkeystore $TOMCAT_DIR/ssl/hmdm.jks -srckeystore $TOMCAT_DIR/ssl/hmdm.p12 -srcstoretype PKCS12 -srcstorepass $PASSWORD -deststorepass $PASSWORD -noprompt    
+elif [ "$PROTOCOL" = "https" ] && [ "$HTTPS_LETSENCRYPT" != "true" ]; then
+    echo "HTTPS enabled but Let's Encrypt disabled - skipping SSL certificate generation (handled by platform)"
 fi
 
-# Waiting for the database
-until PGPASSWORD=$SQL_PASS psql -h "$SQL_HOST" -U "$SQL_USER" -d "$SQL_BASE" -c '\q'; do
-  echo "Waiting for the PostgreSQL database..."
+# Waiting for the database with timeout and SSL support
+echo "Connecting to database: $SQL_USER@$SQL_HOST:$SQL_PORT/$SQL_BASE"
+WAIT_COUNT=0
+MAX_WAIT=24  # 2 minutes (24 * 5 seconds)
+
+until PGPASSWORD=$SQL_PASS psql -h "$SQL_HOST" -U "$SQL_USER" -d "$SQL_BASE" -c '\q' --set=sslmode=require 2>/dev/null; do
+  WAIT_COUNT=$((WAIT_COUNT + 1))
+  if [ $WAIT_COUNT -gt $MAX_WAIT ]; then
+    echo "ERROR: Database connection timeout after 2 minutes"
+    echo "Connection details: $SQL_USER@$SQL_HOST:$SQL_PORT/$SQL_BASE"
+    exit 1
+  fi
+  echo "Waiting for PostgreSQL database... (attempt $WAIT_COUNT/$MAX_WAIT)"
   sleep 5
 done
+echo "Database connection successful!"
 
 # Avoid delays due to an issue with a random number
 cp /opt/java/openjdk/conf/security/java.security /tmp/java.security
